@@ -1,0 +1,40 @@
+# Dependências
+node_modules/
+**/node_modules/
+
+# Builds e Distribuição
+dist/
+**/dist/
+build/
+**/build/
+
+# Variáveis de Ambiente e Segredos
+.env
+**/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Bancos de Dados Locais e Arquivos Temporários
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+prisma/dev.db
+prisma/dev.db-journal
+
+# Dados, Uploads e Logs em Execução
+data/
+uploads/
+**/uploads/
+backups/
+logs/
+**/logs/
+coverage/
+
+# IDEs e Sistema Operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

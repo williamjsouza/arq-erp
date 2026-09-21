@@ -1,0 +1,24 @@
+{
+  "name": "erp-master",
+  "version": "1.0.0",
+  "description": "ERP Empresarial Profissional, Modular e Seguro com Node.js, Express, Prisma, SQLite, React, TypeScript, Tailwind e Docker/Dockploy",
+  "private": true,
+  "scripts": {
+    "setup": "cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "prisma:generate": "cd backend && npx prisma generate",
+    "prisma:migrate": "cd backend && npx prisma migrate deploy",
+    "prisma:seed": "cd backend && npx prisma db seed",
+    "test": "cd backend && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prisma": "^5.22.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  }
+}

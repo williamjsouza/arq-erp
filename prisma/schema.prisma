@@ -1,0 +1,695 @@
+// Prisma Schema para ERP Profissional, Modular e Seguro
+// Suporta SQLite com persistência e preparação para PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../backend/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// MULTIEMPRESA & USUÁRIOS
+// ==========================================
+
+model Company {
+  id            String   @id @default(uuid())
+  razaoSocial   String   @map("razao_social")
+  nomeFantasia  String?  @map("nome_fantasia")
+  cnpj          String   @unique
+  inscricaoEst  String?  @map("inscricao_estadual")
+  email         String?
+  telefone      String?
+  cep           String?
+  endereco      String?
+  numero        String?
+  complemento   String?
+  bairro        String?
+  cidade        String?
+  estado        String?
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  customers          Customer[]
+  suppliers          Supplier[]
+  products           Product[]
+  stockMovements     StockMovement[]
+  purchases          Purchase[]
+  sales              Sale[]
+  accountsPayable    AccountPayable[]
+  accountsReceivable AccountReceivable[]
+  costCenters        CostCenter[]
+  crmLeads           CrmLead[]
+  serviceOrders      ServiceOrder[]
+  services           Service[]
+  quotes             Quote[]
+  auditLogs          AuditLog[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  nome         String
+  email        String    @unique
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  telefone     String?
+  avatar       String?
+  status       String    @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
+  companyId    String    @map("company_id")
+  lastLogin    DateTime? @map("last_login")
+  failedLogins Int       @default(0) @map("failed_logins")
+  blockedUntil DateTime? @map("blocked_until")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userRoles    UserRole[]
+  appointments Appointment[]
+  assignedTasks Task[]   @relation("AssignedTasks")
+  createdTasks  Task[]   @relation("CreatedTasks")
+  serviceOrders ServiceOrder[] @relation("TechnicianOrders")
+  auditLogs    AuditLog[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  nome        String   @unique // SUPER_ADMIN, ADMINISTRADOR, GERENTE, FINANCEIRO, VENDEDOR, OPERADOR
+  descricao   String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  modulo      String   // dashboard, customers, suppliers, products, inventory, purchases, sales, finance, crm, agenda, service_orders, reports, users, roles, settings, audit
+  acao        String   // view, create, edit, delete, export, print, approve
+  chave       String   @unique // ex: customers.view, finance.approve
+  descricao   String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// ==========================================
+// CADASTROS (CLIENTES, FORNECEDORES, PRODUTOS)
+// ==========================================
+
+model Customer {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  tipo         String   @default("PJ") // PF, PJ
+  nomeRazao    String   @map("nome_razao")
+  nomeFantasia String?  @map("nome_fantasia")
+  cpfCnpj      String   @map("cpf_cnpj")
+  rgIe         String?  @map("rg_ie")
+  email        String?
+  telefone     String?
+  celular      String?
+  whatsapp     String?
+  cep          String?
+  endereco     String?
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String?
+  estado       String?
+  observacoes  String?
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales              Sale[]
+  accountsReceivable AccountReceivable[]
+  crmLeads           CrmLead[]
+  serviceOrders      ServiceOrder[]
+  quotes             Quote[]
+
+  @@map("customers")
+}
+
+model Supplier {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  tipo         String   @default("PJ")
+  nomeRazao    String   @map("nome_razao")
+  nomeFantasia String?  @map("nome_fantasia")
+  cpfCnpj      String   @map("cpf_cnpj")
+  rgIe         String?  @map("rg_ie")
+  email        String?
+  telefone     String?
+  celular      String?
+  whatsapp     String?
+  cep          String?
+  endereco     String?
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String?
+  estado       String?
+  observacoes  String?
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products        Product[]
+  purchases       Purchase[]
+  accountsPayable AccountPayable[]
+
+  @@map("suppliers")
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  nome      String
+  descricao String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id        String    @id @default(uuid())
+  nome      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("brands")
+}
+
+model Unit {
+  id        String    @id @default(uuid())
+  sigla     String    @unique // UN, KG, M, CX, L, PC
+  nome      String
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@map("units")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  companyId     String   @map("company_id")
+  codigo        String?
+  sku           String?  @unique
+  codigoBarras  String?  @map("codigo_barras")
+  nome          String
+  descricao     String?
+  categoryId    String?  @map("category_id")
+  brandId       String?  @map("brand_id")
+  unitId        String?  @map("unit_id")
+  supplierId    String?  @map("supplier_id")
+  precoCusto    Float    @default(0) @map("preco_custo")
+  precoVenda    Float    @default(0) @map("preco_venda")
+  estoqueAtual  Float    @default(0) @map("estoque_atual")
+  estoqueMinimo Float    @default(0) @map("estoque_minimo")
+  estoqueMaximo      Float    @default(1000) @map("estoque_maximo")
+  imagemUrl          String?  @map("imagem_url")
+  fabricante         String?
+  linkFornecedor     String?  @map("link_fornecedor")
+  peso               Float?   @default(0)
+  dimensoes          String?
+  garantiaMeses      Int?     @default(0) @map("garantia_meses")
+  localizacaoEstoque String?  @map("localizacao_estoque")
+  status             String   @default("ACTIVE")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  brand             Brand?             @relation(fields: [brandId], references: [id])
+  unit              Unit?              @relation(fields: [unitId], references: [id])
+  supplier          Supplier?          @relation(fields: [supplierId], references: [id])
+  stockMovements    StockMovement[]
+  purchaseItems     PurchaseItem[]
+  saleItems         SaleItem[]
+  serviceOrderItems ServiceOrderItem[]
+  quoteItems        QuoteItem[]
+
+  @@map("products")
+}
+
+// ==========================================
+// ESTOQUE & MOVIMENTAÇÕES (KARDEX)
+// ==========================================
+
+model StockMovement {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  productId   String   @map("product_id")
+  tipo        String   // IN, OUT, ADJUSTMENT, TRANSFER
+  quantidade  Float
+  saldoAnterior Float  @map("saldo_anterior")
+  saldoNovo   Float    @map("saldo_novo")
+  motivo      String?
+  documentoRef String? @map("documento_ref")
+  origem      String?  // PURCHASE, SALE, SERVICE_ORDER, MANUAL
+  usuarioId   String?  @map("usuario_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("stock_movements")
+}
+
+// ==========================================
+// COMPRAS
+// ==========================================
+
+model Purchase {
+  id           String    @id @default(uuid())
+  companyId    String    @map("company_id")
+  supplierId   String    @map("supplier_id")
+  numero       String
+  status       String    @default("DRAFT") // DRAFT, REQUESTED, APPROVED, RECEIVED, CANCELLED
+  valorTotal   Float     @default(0) @map("valor_total")
+  observacoes  String?
+  dataPedido   DateTime  @default(now()) @map("data_pedido")
+  dataEntrega  DateTime? @map("data_entrega")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier  Supplier       @relation(fields: [supplierId], references: [id])
+  items     PurchaseItem[]
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id            String @id @default(uuid())
+  purchaseId    String @map("purchase_id")
+  productId     String @map("product_id")
+  quantidade    Float
+  valorUnitario Float  @map("valor_unitario")
+  valorTotal    Float  @map("valor_total")
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+// ==========================================
+// VENDAS
+// ==========================================
+
+model Sale {
+  id            String    @id @default(uuid())
+  companyId     String    @map("company_id")
+  customerId    String    @map("customer_id")
+  numero        String
+  tipo          String    @default("ORDER") // QUOTE, ORDER, SALE
+  status        String    @default("OPEN") // OPEN, APPROVED, BILLED, CANCELLED
+  valorSubtotal Float     @default(0) @map("valor_subtotal")
+  valorDesconto Float     @default(0) @map("valor_desconto")
+  valorTotal    Float     @default(0) @map("valor_total")
+  formaPagamento String?  @map("forma_pagamento") // PIX, CREDIT_CARD, BOLETO, CASH, TRANSFER
+  parcelas      Int       @default(1)
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer   @relation(fields: [customerId], references: [id])
+  items    SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id            String @id @default(uuid())
+  saleId        String @map("sale_id")
+  productId     String @map("product_id")
+  quantidade    Float
+  valorUnitario Float  @map("valor_unitario")
+  desconto      Float  @default(0)
+  valorTotal    Float  @map("valor_total")
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+// ==========================================
+// SERVIÇOS
+// ==========================================
+
+model Service {
+  id           String      @id @default(uuid())
+  companyId    String      @map("company_id")
+  codigo       String?
+  nome         String
+  descricao    String?
+  categoria    String?
+  preco        Float       @default(0)
+  duracaoHoras Float?      @map("duracao_horas")
+  status       String      @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  quoteItems QuoteItem[]
+
+  @@map("services")
+}
+
+// ==========================================
+// ORÇAMENTOS (QUOTES)
+// ==========================================
+
+model Quote {
+  id             String      @id @default(uuid())
+  companyId      String      @map("company_id")
+  customerId     String      @map("customer_id")
+  numero         String
+  status         String      @default("OPEN") // OPEN, SENT, APPROVED, REJECTED, CANCELLED
+  validadeDias   Int         @default(15) @map("validade_dias")
+  dataValidade   DateTime?   @map("data_validade")
+  valorSubtotal  Float       @default(0) @map("valor_subtotal")
+  valorDesconto  Float       @default(0) @map("valor_desconto")
+  valorTotal     Float       @default(0) @map("valor_total")
+  formaPagamento String?     @map("forma_pagamento")
+  observacoes    String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer   @relation(fields: [customerId], references: [id])
+  items   QuoteItem[]
+
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id            String   @id @default(uuid())
+  quoteId       String   @map("quote_id")
+  tipo          String   @default("PRODUCT") // PRODUCT, SERVICE
+  productId     String?  @map("product_id")
+  serviceId     String?  @map("service_id")
+  descricao     String
+  quantidade    Float
+  valorUnitario Float    @map("valor_unitario")
+  desconto      Float    @default(0)
+  valorTotal    Float    @map("valor_total")
+
+  quote   Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@map("quote_items")
+}
+
+// ==========================================
+// FINANCEIRO
+// ==========================================
+
+model FinancialCategory {
+  id        String   @id @default(uuid())
+  nome      String
+  tipo      String   // INCOMES (Receitas), EXPENSES (Despesas)
+  descricao String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  accountsPayable    AccountPayable[]
+  accountsReceivable AccountReceivable[]
+
+  @@map("financial_categories")
+}
+
+model CostCenter {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  codigo      String?
+  nome        String
+  parentId    String?  @map("parent_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  company          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent           CostCenter?         @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children         CostCenter[]        @relation("CostCenterHierarchy")
+  accountsPayable  AccountPayable[]
+  accountsReceivable AccountReceivable[]
+
+  @@map("cost_centers")
+}
+
+model AccountPayable {
+  id            String    @id @default(uuid())
+  companyId     String    @map("company_id")
+  supplierId    String?   @map("supplier_id")
+  categoryId    String?   @map("category_id")
+  costCenterId  String?   @map("cost_center_id")
+  descricao     String
+  valor         Float
+  dataVencimento DateTime @map("data_vencimento")
+  dataPagamento DateTime? @map("data_pagamento")
+  status        String    @default("PENDING") // PENDING, PAID, OVERDUE, CANCELLED
+  formaPagamento String?  @map("forma_pagamento")
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier    Supplier?          @relation(fields: [supplierId], references: [id])
+  category    FinancialCategory? @relation(fields: [categoryId], references: [id])
+  costCenter  CostCenter?        @relation(fields: [costCenterId], references: [id])
+
+  @@map("accounts_payable")
+}
+
+model AccountReceivable {
+  id            String    @id @default(uuid())
+  companyId     String    @map("company_id")
+  customerId    String?   @map("customer_id")
+  categoryId    String?   @map("category_id")
+  costCenterId  String?   @map("cost_center_id")
+  descricao     String
+  valor         Float
+  dataVencimento DateTime @map("data_vencimento")
+  dataRecebimento DateTime? @map("data_recebimento")
+  status        String    @default("PENDING") // PENDING, RECEIVED, OVERDUE, CANCELLED
+  formaPagamento String?  @map("forma_pagamento")
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer   Customer?          @relation(fields: [customerId], references: [id])
+  category   FinancialCategory? @relation(fields: [categoryId], references: [id])
+  costCenter CostCenter?        @relation(fields: [costCenterId], references: [id])
+
+  @@map("accounts_receivable")
+}
+
+// ==========================================
+// CRM
+// ==========================================
+
+model CrmPipelineStage {
+  id        String   @id @default(uuid())
+  nome      String   // NOVO LEAD, CONTATO, NEGOCIACAO, PROPOSTA, FECHAMENTO
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  leads CrmLead[]
+
+  @@map("crm_pipeline_stages")
+}
+
+model CrmLead {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  stageId     String   @map("stage_id")
+  customerId  String?  @map("customer_id")
+  titulo      String
+  contatoNome String   @map("contato_nome")
+  email       String?
+  telefone    String?
+  valorEstimado Float  @default(0) @map("valor_estimado")
+  probabilidade Int    @default(50)
+  observacoes String?
+  status      String   @default("OPEN") // OPEN, WON, LOST
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stage    CrmPipelineStage @relation(fields: [stageId], references: [id])
+  customer Customer?        @relation(fields: [customerId], references: [id])
+
+  @@map("crm_leads")
+}
+
+// ==========================================
+// AGENDA & OS
+// ==========================================
+
+model Appointment {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  titulo      String
+  descricao   String?
+  dataInicio  DateTime @map("data_inicio")
+  dataFim     DateTime @map("data_fim")
+  local       String?
+  status      String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("appointments")
+}
+
+model Task {
+  id            String    @id @default(uuid())
+  createdById   String    @map("created_by_id")
+  assignedToId  String?   @map("assigned_to_id")
+  titulo        String
+  descricao     String?
+  prioridade    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status        String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+  dataVencimento DateTime? @map("data_vencimento")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  createdBy  User  @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("AssignedTasks", fields: [assignedToId], references: [id])
+
+  @@map("tasks")
+}
+
+model ServiceOrder {
+  id             String    @id @default(uuid())
+  companyId      String    @map("company_id")
+  customerId     String    @map("customer_id")
+  technicianId   String?   @map("technician_id")
+  numero         String
+  equipamento    String?
+  problema       String?
+  servicoPrestado String?  @map("servico_prestado")
+  valorServicos  Float     @default(0) @map("valor_servicos")
+  valorPecas     Float     @default(0) @map("valor_pecas")
+  valorTotal     Float     @default(0) @map("valor_total")
+  status         String    @default("OPEN") // OPEN, IN_ANALYSIS, AWAITING_APPROVAL, IN_PROGRESS, COMPLETED, CANCELLED
+  dataAbertura   DateTime  @default(now()) @map("data_abertura")
+  dataConclusao  DateTime? @map("data_conclusao")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer   Customer           @relation(fields: [customerId], references: [id])
+  technician User?              @relation("TechnicianOrders", fields: [technicianId], references: [id])
+  items      ServiceOrderItem[]
+
+  @@map("service_orders")
+}
+
+model ServiceOrderItem {
+  id             String @id @default(uuid())
+  serviceOrderId String @map("service_order_id")
+  productId      String @map("product_id")
+  quantidade     Float
+  valorUnitario  Float  @map("valor_unitario")
+  valorTotal     Float  @map("valor_total")
+
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id])
+
+  @@map("service_order_items")
+}
+
+// ==========================================
+// AUDITORIA, CONFIGURAÇÕES E NOTIFICAÇÕES
+// ==========================================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String?  @map("company_id")
+  userId     String?  @map("user_id")
+  userName   String?  @map("user_name")
+  modulo     String
+  acao       String
+  registroId String?  @map("registro_id")
+  valAnterior String? @map("valor_anterior")
+  valNovo    String?  @map("valor_novo")
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company Company? @relation(fields: [companyId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  titulo    String
+  mensagem  String
+  lida      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  chave     String   @unique
+  valor     String
+  descricao String?
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

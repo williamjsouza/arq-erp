@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: erp_backend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=file:/app/data/database.sqlite
+      - JWT_SECRET=${JWT_SECRET:-erp_prod_jwt_super_secret_key_2026}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-erp_prod_refresh_jwt_super_secret_2026}
+      - JWT_EXPIRES_IN=1d
+      - JWT_REFRESH_EXPIRES_IN=7d
+    volumes:
+      # Persistência permanente do banco de dados SQLite e dos uploads no Dokploy
+      - erp_db_data:/app/data
+      - erp_uploads_data:/app/backend/uploads
+    networks:
+      - erp_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: erp_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - erp_network
+
+volumes:
+  erp_db_data:
+    driver: local
+  erp_uploads_data:
+    driver: local
+
+networks:
+  erp_network:
+    driver: bridge
