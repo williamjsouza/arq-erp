@@ -51,5 +51,5 @@ RUN mkdir -p uploads/products /app/data
 
 EXPOSE 3000
 
-# Inicialização: Sincroniza schema do banco SQLite persistido e inicia servidor
-CMD ["sh", "-c", "npx prisma db push --schema=/app/prisma/schema.prisma && node dist/server.js"]
+# Inicialização: Sincroniza schema do banco SQLite persistido, roda seed se necessário e inicia servidor
+CMD ["sh", "-c", "npx prisma db push --schema=/app/prisma/schema.prisma && node dist/seed.js && node dist/server.js"]

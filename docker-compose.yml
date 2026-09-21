@@ -34,8 +34,10 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: erp_frontend
     restart: always
+    expose:
+      - "80"
     ports:
-      - "80:80"
+      - "${PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy
